@@ -67,7 +67,7 @@ func (p *Producer) PublishOrder(orderID string) error {
 	}
 
 	topic := "orders"
-	for i := 0; i < 1000000; i++ {
+	for i := 0; i < 100000; i++ {
 		msg := &kafka.Message{
 			TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 			Key:            []byte(uuid.New().String()),

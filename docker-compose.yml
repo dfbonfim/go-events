@@ -15,6 +15,11 @@ services:
       test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
       timeout: 20s
       retries: 10
+#    deploy:
+#      resources:
+#        limits:
+#          cpus: "1.0" # Limita a 1 CPU
+#          memory: "2048M" # Limita a 512 MB de memória
 
   zookeeper:
     image: confluentinc/cp-zookeeper:latest

@@ -35,7 +35,8 @@ func main() {
 	}()
 
 	// Initialize infrastructure layer - database
-	repository := persistence.NewGormRepository("")
+	//repository := persistence.NewGormRepository("")
+	repository := persistence.NewSQLxRepository("")
 	err := repository.Init()
 	if err != nil {
 		logrus.Fatalf("Failed to initialize database: %v", err)
@@ -54,7 +55,7 @@ func main() {
 
 	// Start multiple consumers with context
 	var wg sync.WaitGroup
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func(consumerIndex int) {
 			defer wg.Done()
