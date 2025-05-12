@@ -4,18 +4,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"goEvents/internal/domain/service"
-	"goEvents/internal/infrastructure/kafka"
+	"goEvents/internal/infrastructure/messaging"
 	"net/http"
 )
 
 // Handler handles HTTP requests
 type Handler struct {
 	orderService *service.OrderService
-	producer     *kafka.Producer
+	producer     messaging.MessageProducer
 }
 
 // NewHandler creates a new API handler
-func NewHandler(orderService *service.OrderService, producer *kafka.Producer) *Handler {
+func NewHandler(orderService *service.OrderService, producer messaging.MessageProducer) *Handler {
 	return &Handler{
 		orderService: orderService,
 		producer:     producer,

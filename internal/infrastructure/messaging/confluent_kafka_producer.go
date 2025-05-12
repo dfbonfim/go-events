@@ -1,4 +1,4 @@
-package kafka
+package messaging
 
 import (
 	"context"
@@ -9,22 +9,30 @@ import (
 	"sync"
 )
 
-// Producer handles Kafka message production
-type Producer struct {
+// ConfluentKafkaProducer implements the MessageProducer interface using Confluent's Kafka client
+type ConfluentKafkaProducer struct {
 	producer    *kafka.Producer
 	mutex       sync.Mutex
 	initialized bool
+	config      *kafka.ConfigMap
 }
 
-// NewProducer creates a new Kafka producer
-func NewProducer() *Producer {
-	return &Producer{
+// NewConfluentKafkaProducer creates a new Kafka producer using Confluent's library
+func NewConfluentKafkaProducer(bootstrapServers string) *ConfluentKafkaProducer {
+	if bootstrapServers == "" {
+		bootstrapServers = "localhost:9092"
+	}
+
+	return &ConfluentKafkaProducer{
 		initialized: false,
+		config: &kafka.ConfigMap{
+			"bootstrap.servers": bootstrapServers,
+		},
 	}
 }
 
 // Initialize creates the Kafka producer
-func (p *Producer) Initialize() error {
+func (p *ConfluentKafkaProducer) Initialize() error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -33,9 +41,9 @@ func (p *Producer) Initialize() error {
 	}
 
 	var err error
-	p.producer, err = kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "localhost:9092"})
+	p.producer, err = kafka.NewProducer(p.config)
 	if err != nil {
-		return fmt.Errorf("failed to create Kafka producer: %w", err)
+		return fmt.Errorf("failed to create Confluent Kafka producer: %w", err)
 	}
 
 	// Start a goroutine to handle delivery reports
@@ -61,7 +69,7 @@ func (p *Producer) Initialize() error {
 }
 
 // PublishOrder publishes order messages to Kafka
-func (p *Producer) PublishOrder(orderID string) error {
+func (p *ConfluentKafkaProducer) PublishOrder(orderID string) error {
 	if err := p.Initialize(); err != nil {
 		return err
 	}
@@ -85,7 +93,7 @@ func (p *Producer) PublishOrder(orderID string) error {
 }
 
 // Shutdown gracefully shuts down the producer
-func (p *Producer) Shutdown(ctx context.Context) {
+func (p *ConfluentKafkaProducer) Shutdown(ctx context.Context) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 

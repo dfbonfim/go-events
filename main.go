@@ -5,7 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"goEvents/internal/domain/service"
 	"goEvents/internal/infrastructure/api"
-	"goEvents/internal/infrastructure/kafka"
+	"goEvents/internal/infrastructure/messaging"
 	"goEvents/internal/infrastructure/persistence"
 	"net/http"
 	"os"
@@ -46,12 +46,12 @@ func main() {
 	orderService := service.NewOrderService(repository)
 
 	// Initialize infrastructure layer - Kafka
-	producer := kafka.NewProducer()
+	producer := messaging.NewSaramaKafkaProducer("")
 	if err := producer.Initialize(); err != nil {
 		logrus.WithError(err).Fatal("Failed to initialize Kafka producer")
 	}
 
-	consumer := kafka.NewConsumer(orderService)
+	consumer := messaging.NewSaramaKafkaConsumer(orderService, nil)
 
 	// Start multiple consumers with context
 	var wg sync.WaitGroup
