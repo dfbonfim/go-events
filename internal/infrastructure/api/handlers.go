@@ -1,22 +1,24 @@
-package handlers
+package api
 
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"goEvents/pkg/db"
-	"goEvents/pkg/kafka"
+	"goEvents/internal/domain/service"
+	"goEvents/internal/infrastructure/kafka"
 	"net/http"
 )
 
-// Handler struct for dependency injection
+// Handler handles HTTP requests
 type Handler struct {
-	producer *kafka.Producer
+	orderService *service.OrderService
+	producer     *kafka.Producer
 }
 
-// NewHandler creates a new Handler with dependencies
-func NewHandler(repository db.Repository) *Handler {
+// NewHandler creates a new API handler
+func NewHandler(orderService *service.OrderService, producer *kafka.Producer) *Handler {
 	return &Handler{
-		producer: kafka.NewProducer(repository),
+		orderService: orderService,
+		producer:     producer,
 	}
 }
 
@@ -30,7 +32,7 @@ func (h *Handler) PingHandler(c *gin.Context) {
 		return
 	}
 
-	err := h.producer.Publish("123")
+	err := h.producer.PublishOrder("123")
 	if err != nil {
 		logrus.WithError(err).Error("Failed to publish message")
 		c.JSON(http.StatusInternalServerError, gin.H{

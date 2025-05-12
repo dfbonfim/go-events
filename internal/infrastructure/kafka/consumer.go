@@ -1,28 +1,29 @@
-// Passo 2 e 3: Criar e implementar um consumidor Kafka básico no consumer.go
 package kafka
 
 import (
 	"context"
-	"fmt"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"goEvents/pkg/db"
+	"goEvents/internal/domain/service"
 	"sync"
 	"time"
 )
 
+// Consumer handles Kafka message consumption
 type Consumer struct {
-	repository db.Repository
-	wg         sync.WaitGroup
+	orderService *service.OrderService
+	wg           sync.WaitGroup
 }
 
-func NewConsumer(repository db.Repository) *Consumer {
+// NewConsumer creates a new Kafka consumer with the given order service
+func NewConsumer(orderService *service.OrderService) *Consumer {
 	return &Consumer{
-		repository: repository,
+		orderService: orderService,
 	}
 }
 
+// Start begins consuming messages in a goroutine
 func (c *Consumer) Start(ctx context.Context) {
 	c.wg.Add(1)
 	go func() {
@@ -31,10 +32,11 @@ func (c *Consumer) Start(ctx context.Context) {
 	}()
 }
 
+// consume handles the actual message consumption
 func (c *Consumer) consume(ctx context.Context) {
 	config := &kafka.ConfigMap{
 		"bootstrap.servers": "localhost:9092",
-		"group.id":          "myGroup",
+		"group.id":          "order.group",
 		"auto.offset.reset": "earliest",
 	}
 
@@ -44,7 +46,7 @@ func (c *Consumer) consume(ctx context.Context) {
 		return
 	}
 
-	consumer.SubscribeTopics([]string{"myTopic"}, nil)
+	consumer.SubscribeTopics([]string{"orders"}, nil)
 
 	// Handle graceful shutdown
 	go func() {
@@ -71,18 +73,13 @@ func (c *Consumer) consume(ctx context.Context) {
 
 			switch ev.(type) {
 			case *kafka.Message:
-				messageID := uuid.New()
+				messageID := uuid.New().String()
 
-				// Create and save a new pedido
-				pedido := &db.Pedido{
-					Produto:    fmt.Sprintf("Produto-%s", messageID),
-					Quantidade: 1,
-					Status:     "pendente",
-				}
-
-				err := c.repository.SavePedido(pedido)
+				// Process the message using the domain service
+				description := "Note-" + messageID
+				_, err := c.orderService.CreateOrder(description, 1)
 				if err != nil {
-					logrus.WithError(err).Error("Error saving pedido")
+					logrus.WithError(err).Error("Error creating order")
 				}
 
 				// Calculate processing time in milliseconds
@@ -99,6 +96,7 @@ func (c *Consumer) consume(ctx context.Context) {
 	logrus.Info("Consumer loop exited")
 }
 
+// Wait waits for all consumer goroutines to finish
 func (c *Consumer) Wait() {
 	c.wg.Wait()
 }

@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"goEvents/pkg/db"
-	"goEvents/pkg/handlers"
-	"goEvents/pkg/kafka"
+	"goEvents/internal/domain/service"
+	"goEvents/internal/infrastructure/api"
+	"goEvents/internal/infrastructure/kafka"
+	"goEvents/internal/infrastructure/persistence"
 	"net/http"
 	"os"
 	"os/signal"
@@ -34,21 +34,23 @@ func main() {
 		cancel() // Cancel the context, triggering graceful shutdown
 	}()
 
-	// Initialize database repository
-	dbRepo := db.NewGormRepository("")
-	err := dbRepo.Init()
+	// Initialize infrastructure layer - database
+	repository := persistence.NewGormRepository("")
+	err := repository.Init()
 	if err != nil {
 		logrus.Fatalf("Failed to initialize database: %v", err)
 	}
 
-	// Initialize Kafka consumer with DB repository dependency
-	consumer := kafka.NewConsumer(dbRepo)
+	// Initialize domain layer - services
+	orderService := service.NewOrderService(repository)
 
-	// Initialize Kafka producer with DB repository dependency
-	producer := kafka.NewProducer(dbRepo)
+	// Initialize infrastructure layer - Kafka
+	producer := kafka.NewProducer()
 	if err := producer.Initialize(); err != nil {
 		logrus.WithError(err).Fatal("Failed to initialize Kafka producer")
 	}
+
+	consumer := kafka.NewConsumer(orderService)
 
 	// Start multiple consumers with context
 	var wg sync.WaitGroup
@@ -61,15 +63,9 @@ func main() {
 		}(i)
 	}
 
-	// Initialize handlers with DB repository and pass the producer
-	handler := handlers.NewHandler(dbRepo)
-
-	// Setup Gin router
-	router := gin.Default()
-
-	// Register new handlers with dependency injection
-	router.GET("/ping", handler.PingHandler)
-	router.GET("/hello", handler.HelloHandler)
+	// Initialize infrastructure layer - API
+	handler := api.NewHandler(orderService, producer)
+	router := api.SetupRouter(handler)
 
 	// Create HTTP server with the router
 	srv := &http.Server{

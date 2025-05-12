@@ -4,21 +4,21 @@ import (
 	"context"
 	"fmt"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"goEvents/pkg/db"
 	"sync"
 )
 
+// Producer handles Kafka message production
 type Producer struct {
-	repository  db.Repository
 	producer    *kafka.Producer
 	mutex       sync.Mutex
 	initialized bool
 }
 
-func NewProducer(repository db.Repository) *Producer {
+// NewProducer creates a new Kafka producer
+func NewProducer() *Producer {
 	return &Producer{
-		repository:  repository,
 		initialized: false,
 	}
 }
@@ -60,18 +60,20 @@ func (p *Producer) Initialize() error {
 	return nil
 }
 
-func (p *Producer) Publish(message string) error {
+// PublishOrder publishes order messages to Kafka
+func (p *Producer) PublishOrder(orderID string) error {
 	if err := p.Initialize(); err != nil {
 		return err
 	}
 
-	topic := "myTopic"
-	msg := &kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-		Value:          []byte(message),
-	}
+	topic := "orders"
+	for i := 0; i < 1000000; i++ {
+		msg := &kafka.Message{
+			TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+			Key:            []byte(uuid.New().String()),
+			Value:          []byte(orderID),
+		}
 
-	for i := 0; i < 100000; i++ {
 		err := p.producer.Produce(msg, nil)
 		if err != nil {
 			logrus.WithError(err).Error("Failed to produce message")
@@ -118,32 +120,4 @@ func (p *Producer) Shutdown(ctx context.Context) {
 
 	p.initialized = false
 	p.producer = nil
-}
-
-// PublishMessage is kept for backward compatibility
-// Deprecated: Use Producer.Publish instead
-func PublishMessage(message string) {
-	producer, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "localhost:9092"})
-	if err != nil {
-		logrus.WithError(err).Error("Failed to create producer")
-		return
-	}
-	defer func() {
-		producer.Flush(15 * 1000) // Wait up to 15 seconds to send pending messages
-		producer.Close()
-	}()
-
-	topic := "myTopic"
-	msg := &kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-		Value:          []byte(message),
-	}
-
-	for i := 0; i < 10; i++ {
-		err = producer.Produce(msg, nil)
-		if err != nil {
-			logrus.WithError(err).Error("Failed to produce message")
-			return
-		}
-	}
 }
