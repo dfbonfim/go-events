@@ -35,7 +35,6 @@ func main() {
 	}()
 
 	// Initialize infrastructure layer - database
-	//repository := persistence.NewGormRepository("")
 	repository := persistence.NewSQLxRepository("")
 	err := repository.Init()
 	if err != nil {
@@ -45,13 +44,21 @@ func main() {
 	// Initialize domain layer - services
 	orderService := service.NewOrderService(repository)
 
+	// Create Kafka configuration
+	kafkaConfig := &messaging.ConsumerConfig{
+		BootstrapServers: "localhost:9092",
+		GroupID:          "order.group",
+		Topics:           []string{"orders"},
+		AutoOffsetReset:  "earliest",
+	}
+
 	// Initialize infrastructure layer - Kafka
-	producer := messaging.NewSaramaKafkaProducer("")
+	producer := messaging.NewFranzKafkaProducer("")
 	if err := producer.Initialize(); err != nil {
 		logrus.WithError(err).Fatal("Failed to initialize Kafka producer")
 	}
 
-	consumer := messaging.NewSaramaKafkaConsumer(orderService, nil)
+	consumer := messaging.NewFranzKafkaConsumer(orderService, kafkaConfig)
 
 	// Start multiple consumers with context
 	var wg sync.WaitGroup

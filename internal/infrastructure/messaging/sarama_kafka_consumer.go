@@ -21,30 +21,8 @@ type SaramaKafkaConsumer struct {
 
 // NewSaramaKafkaConsumer creates a new Kafka consumer with the given order service
 func NewSaramaKafkaConsumer(orderService *service.OrderService, config *ConsumerConfig) *SaramaKafkaConsumer {
-	// Apply defaults if not provided
 	if config == nil {
-		config = &ConsumerConfig{
-			BootstrapServers: "localhost:9092",
-			GroupID:          "order.group",
-			Topics:           []string{"orders"},
-			AutoOffsetReset:  "earliest",
-		}
-	}
-
-	if config.BootstrapServers == "" {
-		config.BootstrapServers = "localhost:9092"
-	}
-
-	if config.GroupID == "" {
-		config.GroupID = "order.group"
-	}
-
-	if len(config.Topics) == 0 {
-		config.Topics = []string{"orders"}
-	}
-
-	if config.AutoOffsetReset == "" {
-		config.AutoOffsetReset = "earliest"
+		logrus.Fatal("Kafka configuration must be provided")
 	}
 
 	return &SaramaKafkaConsumer{
